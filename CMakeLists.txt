@@ -1,0 +1,5 @@
+﻿cmake_minimum_required (VERSION 3.10)
+project (asio_ext C CXX)
+add_subdirectory(asio)
+add_subdirectory(ext)
+add_subdirectory(test)
