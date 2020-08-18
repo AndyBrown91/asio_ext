@@ -1,2 +1,4 @@
 ﻿add_library(asio_ext INTERFACE)
+target_include_directories(asio_ext INTERFACE include)
 target_link_libraries(asio_ext INTERFACE asio)
+target_compile_features(asio_ext INTERFACE cxx_std_17)
