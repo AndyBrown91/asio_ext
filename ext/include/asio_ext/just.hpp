@@ -39,7 +39,7 @@ namespace asio_ext
                 Receiver receiver_;
                 storage_type values_;
 
-                void start() {
+                void start() const ASIO_NOEXCEPT {
                     try {
                         auto caller = [this](auto &&... values) {
                             asio_ext::set_value(std::move(receiver_), std::forward<decltype(values)>(values)...);
@@ -74,7 +74,7 @@ namespace asio_ext
             {
                 Receiver receiver_;
 
-                void start() {
+                void start() const ASIO_NOEXCEPT {
                     try {
                         asio_ext::set_value((Receiver&&)receiver_);
                     }
@@ -95,3 +95,20 @@ namespace asio_ext
         return detail::just_sender<decltype(value)...>(std::forward<decltype(value)>(value)...);
     };
 } // namespace asio_ext
+
+#if !defined(ASIO_HAS_DEDUCED_START_MEMBER_TRAIT)
+
+namespace asio {
+namespace traits {
+
+template <class Receiver>
+struct start_member<asio_ext::detail::just_sender<>::just_operation<Receiver>>
+{
+    ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
+    ASIO_STATIC_CONSTEXPR(bool, is_noexcept = true);
+    typedef void result_type;
+};
+
+} // namespace traits
+} // namespace asio
+#endif // !defined(ASIO_HAS_DEDUCED_START_MEMBER_TRAIT)

@@ -9,6 +9,7 @@
 #include <exception>
 #include <type_traits>
 
+#include <asio/detail/type_traits.hpp>
 #include <asio_ext/tag.hpp>
 
 namespace asio_ext
@@ -20,13 +21,7 @@ namespace asio_ext
     }
 
     template <class T>
-    struct remove_cvref
-    {
-        typedef std::remove_cv_t<std::remove_reference_t<T>> type;
-    };
-
-    template <class T>
-    using remove_cvref_t = typename remove_cvref<T>::type;
+    using remove_cvref_t = typename asio::remove_cvref<T>::type;
 
     template <class T>
     struct is_nothrow_move_or_copy_constructible
@@ -103,30 +98,6 @@ namespace asio_ext
     template <class Class, class Tag, class... Args>
     struct has_tag_invoke : std::disjunction<has_tag_invoke_member_function<Class, Tag, Args...>,
         has_tag_invoke_free_function<Class, Tag, Args...>>
-    {};
-
-    namespace detail
-    {
-        template <class Executor, class Function>
-        struct is_executor_of_impl
-            : std::conjunction<std::is_invocable<Function>, std::is_nothrow_copy_constructible<Executor>,
-            std::is_nothrow_destructible<Executor>,
-            asio_ext::has_tag_invoke<Executor, asio_ext::tag::execute_t, Function>>
-        {};
-
-        struct archetype_invocable
-        {
-            void operator()();
-            archetype_invocable() = delete;
-        };
-    } // namespace detail
-
-    template <class Executor>
-    struct is_executor : asio_ext::detail::is_executor_of_impl<Executor, detail::archetype_invocable>
-    {};
-
-    template <class Executor, class Function>
-    struct is_executor_of : asio_ext::detail::is_executor_of_impl<Executor, Function>
     {};
 
     template <class T, class E = std::exception_ptr>
