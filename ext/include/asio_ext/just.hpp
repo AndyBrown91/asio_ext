@@ -9,6 +9,7 @@
 #include <tuple>
 
 #include <asio/execution/connect.hpp>
+#include <asio/execution/set_value.hpp>
 
 #include <asio_ext/set_error.hpp>
 #include <asio_ext/set_value.hpp>
@@ -41,12 +42,10 @@ namespace asio_ext
 
                 void start() const ASIO_NOEXCEPT {
                     try {
-#if 0
                         auto caller = [this](auto &&... values) {
-                            asio_ext::set_value(std::move(receiver_), std::forward<decltype(values)>(values)...);
+                            asio::execution::set_value(std::move(receiver_), std::forward<decltype(values)>(values)...);
                         };
                         std::apply(caller, std::move(values_));
-#endif
                     }
                     catch (...) {
                         asio_ext::set_error((Receiver&&)receiver_, std::current_exception());

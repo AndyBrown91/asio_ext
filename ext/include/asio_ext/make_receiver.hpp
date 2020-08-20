@@ -7,6 +7,11 @@
 #pragma once
 
 #include <utility>
+
+#include <asio/execution/set_done.hpp>
+#include <asio/execution/set_error.hpp>
+#include <asio/execution/set_value.hpp>
+
 #include <asio_ext/type_traits.hpp>
 
 #include <boost/mp11/algorithm.hpp>
@@ -213,3 +218,56 @@ namespace asio_ext
     constexpr make_receiver_detail::value_fn value_channel;
     constexpr make_receiver_detail::make_receiver_fn make_receiver;
 } // namespace asio_ext
+
+#if !defined(ASIO_HAS_DEDUCED_SET_VALUE_MEMBER_TRAIT)
+
+namespace asio {
+namespace traits {
+
+template <class... Tags, class... Values>
+struct set_value_member<asio_ext::make_receiver_detail::receiver_impl<Tags...>, void(Values...)>
+{
+  ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
+  ASIO_STATIC_CONSTEXPR(bool, is_noexcept = false);
+  typedef void result_type;
+};
+
+} // namespace traits
+} // namespace asio
+
+#endif // !defined(ASIO_HAS_DEDUCED_SET_VALUE_MEMBER_TRAIT)
+
+#if !defined(ASIO_HAS_DEDUCED_SET_ERROR_MEMBER_TRAIT)
+
+namespace asio {
+namespace traits {
+
+template <class... Tags, typename E>
+struct set_error_member<asio_ext::make_receiver_detail::receiver_impl<Tags...>, E>
+{
+  ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
+  ASIO_STATIC_CONSTEXPR(bool, is_noexcept = true);
+  typedef void result_type;
+};
+
+} // namespace traits
+} // namespace asio
+
+#endif // !defined(ASIO_HAS_DEDUCED_SET_ERROR_MEMBER_TRAIT)
+
+#if !defined(ASIO_HAS_DEDUCED_SET_DONE_MEMBER_TRAIT)
+
+namespace asio {
+namespace traits {
+
+template <class... Tags>
+struct set_done_member<asio_ext::make_receiver_detail::receiver_impl<Tags...>>
+{
+  ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
+  ASIO_STATIC_CONSTEXPR(bool, is_noexcept = true);
+  typedef void result_type;
+};
+} // namespace traits
+} // namespace asio
+
+#endif // !defined(ASIO_HAS_DEDUCED_SET_DONE_MEMBER_TRAIT)

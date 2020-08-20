@@ -2,6 +2,7 @@
 #include <asio/execution/start.hpp>
 #include <asio_ext/just.hpp>
 #include <asio_ext/make_receiver.hpp>
+#include <iostream>
 
 TEST_CASE("just: single value connect")
 {
@@ -9,11 +10,9 @@ TEST_CASE("just: single value connect")
     auto op = asio::execution::connect(asio_ext::just(), asio_ext::value_channel([&]() {
         called = true;
     }));
-#if 0
     REQUIRE_FALSE(called);
     asio::execution::start(op);
     REQUIRE(called);
-#endif
 }
 
 #if 0
