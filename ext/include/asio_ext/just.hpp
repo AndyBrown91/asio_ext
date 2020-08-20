@@ -8,10 +8,10 @@
 
 #include <tuple>
 
+#include <asio/execution/connect.hpp>
+
 #include <asio_ext/set_error.hpp>
 #include <asio_ext/set_value.hpp>
-
-#include <asio_ext/sender_value_type.hpp>
 
 namespace asio_ext
 {
@@ -41,10 +41,12 @@ namespace asio_ext
 
                 void start() const ASIO_NOEXCEPT {
                     try {
+#if 0
                         auto caller = [this](auto &&... values) {
                             asio_ext::set_value(std::move(receiver_), std::forward<decltype(values)>(values)...);
                         };
                         std::apply(caller, std::move(values_));
+#endif
                     }
                     catch (...) {
                         asio_ext::set_error((Receiver&&)receiver_, std::current_exception());
@@ -55,38 +57,6 @@ namespace asio_ext
             template <class Receiver>
             auto connect(Receiver&& recv) {
                 return just_operation<std::decay_t<Receiver>>{std::forward<Receiver>(recv), std::move(val_)};
-            }
-        };
-
-        template <>
-        struct just_sender<>
-        {
-            template<template<class...> class Tuple, template<class...> class Variant>
-            using value_types = Variant<Tuple<>>;
-
-            template<template<class...> class Variant>
-            using error_types = Variant<std::exception_ptr>;
-
-            static constexpr bool sends_done = false;
-
-            template <class Receiver>
-            struct just_operation
-            {
-                Receiver receiver_;
-
-                void start() const ASIO_NOEXCEPT {
-                    try {
-                        asio_ext::set_value((Receiver&&)receiver_);
-                    }
-                    catch (...) {
-                        asio_ext::set_error((Receiver&&)receiver_, std::current_exception());
-                    }
-                }
-            };
-
-            template <class Receiver>
-            auto connect(Receiver&& recv) {
-                return just_operation<asio_ext::remove_cvref_t<Receiver>>{std::forward<Receiver>(recv)};
             }
         };
     } // namespace detail
@@ -112,3 +82,21 @@ struct start_member<asio_ext::detail::just_sender<>::just_operation<Receiver>>
 } // namespace traits
 } // namespace asio
 #endif // !defined(ASIO_HAS_DEDUCED_START_MEMBER_TRAIT)
+
+#if !defined(ASIO_HAS_DEDUCED_CONNECT_MEMBER_TRAIT)
+
+namespace asio {
+namespace traits {
+
+template <typename R>
+struct connect_member<asio_ext::detail::just_sender<>, R>
+{
+  ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
+  ASIO_STATIC_CONSTEXPR(bool, is_noexcept = false);
+  typedef asio_ext::detail::just_sender<>::just_operation<R>  result_type;
+};
+
+} // namespace traits
+} // namespace asio
+
+#endif // !defined(ASIO_HAS_DEDUCED_CONNECT_MEMBER_TRAIT)
