@@ -42,10 +42,12 @@ namespace asio_ext
 
                 void start() const ASIO_NOEXCEPT {
                     try {
+#if 0
                         auto caller = [this](auto &&... values) {
                             asio::execution::set_value(std::move(receiver_), std::forward<decltype(values)>(values)...);
                         };
                         std::apply(caller, std::move(values_));
+#endif
                     }
                     catch (...) {
                         asio_ext::set_error((Receiver&&)receiver_, std::current_exception());
