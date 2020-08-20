@@ -107,13 +107,13 @@ namespace asio_ext
                 this->tagged_value(has_value_tag<tag_list>{}, std::forward<Values>(values)...);
             }
 
-            void set_done() {
+            void set_done() ASIO_NOEXCEPT {
                 this->tagged_done<boost::mp11::mp_find_if<tag_list, is_done_tag>::value>(
                     has_done_tag<tag_list>{});
             }
 
             template <class E>
-            void set_error(E&& err) {
+            void set_error(E&& err) ASIO_NOEXCEPT {
                 this->tagged_error(has_error_tag<tag_list>{}, std::forward<E>(err));
             }
 
