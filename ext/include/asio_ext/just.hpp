@@ -13,8 +13,6 @@
 #include <asio/execution/set_error.hpp>
 #include <asio/execution/start.hpp>
 
-#include <asio_ext/set_value.hpp>
-
 namespace asio_ext
 {
     namespace detail
@@ -25,15 +23,12 @@ namespace asio_ext
             Receiver receiver_;
             storage_type values_;
 
-            void start() const ASIO_NOEXCEPT {
+            void start() ASIO_NOEXCEPT {
                 try {
-                    int a = 1;
-#if 0
                     auto caller = [this](auto &&... values) {
                         asio::execution::set_value(std::move(receiver_), std::forward<decltype(values)>(values)...);
                     };
                     std::apply(caller, std::move(values_));
-#endif
                 }
                 catch (...) {
                     asio::execution::set_error((Receiver&&)receiver_, std::current_exception());
