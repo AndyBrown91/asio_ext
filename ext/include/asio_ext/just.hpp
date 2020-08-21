@@ -11,12 +11,36 @@
 #include <asio/execution/connect.hpp>
 #include <asio/execution/set_value.hpp>
 #include <asio/execution/set_error.hpp>
+#include <asio/execution/start.hpp>
+
 #include <asio_ext/set_value.hpp>
 
 namespace asio_ext
 {
     namespace detail
     {
+        template <class storage_type, class Receiver>
+        struct just_operation
+        {
+            Receiver receiver_;
+            storage_type values_;
+
+            void start() const ASIO_NOEXCEPT {
+                try {
+                    int a = 1;
+#if 0
+                    auto caller = [this](auto &&... values) {
+                        asio::execution::set_value(std::move(receiver_), std::forward<decltype(values)>(values)...);
+                    };
+                    std::apply(caller, std::move(values_));
+#endif
+                }
+                catch (...) {
+                    asio::execution::set_error((Receiver&&)receiver_, std::current_exception());
+                }
+            }
+        };
+
         template <class... Values>
         struct just_sender
         {
@@ -34,29 +58,9 @@ namespace asio_ext
             }
 
             template <class Receiver>
-            struct just_operation
-            {
-                Receiver receiver_;
-                storage_type values_;
-
-                void start() const ASIO_NOEXCEPT {
-                    try {
-#if 0
-                        auto caller = [this](auto &&... values) {
-                            asio::execution::set_value(std::move(receiver_), std::forward<decltype(values)>(values)...);
-                        };
-                        std::apply(caller, std::move(values_));
-#endif
-                    }
-                    catch (...) {
-                        asio::execution::set_error((Receiver&&)receiver_, std::current_exception());
-                    }
-                }
-            };
-
-            template <class Receiver>
             auto connect(Receiver&& recv) {
-                return just_operation<std::decay_t<Receiver>>{std::forward<Receiver>(recv), std::move(val_)};
+                return just_operation<
+                    storage_type, std::decay_t<Receiver>>{std::forward<Receiver>(recv), std::move(val_)};
             }
         };
     } // namespace detail
@@ -71,8 +75,8 @@ namespace asio_ext
 namespace asio {
 namespace traits {
 
-template <class Receiver>
-struct start_member<asio_ext::detail::just_sender<>::just_operation<Receiver>>
+template <class storage_type, class Receiver>
+struct start_member<asio_ext::detail::just_operation<storage_type, Receiver>>
 {
     ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
     ASIO_STATIC_CONSTEXPR(bool, is_noexcept = true);
@@ -88,12 +92,13 @@ struct start_member<asio_ext::detail::just_sender<>::just_operation<Receiver>>
 namespace asio {
 namespace traits {
 
-template <typename R>
-struct connect_member<asio_ext::detail::just_sender<>, R>
+template <class... Values, typename R>
+struct connect_member<asio_ext::detail::just_sender<Values...>, R>
 {
   ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
   ASIO_STATIC_CONSTEXPR(bool, is_noexcept = false);
-  typedef asio_ext::detail::just_sender<>::just_operation<R>  result_type;
+  typedef typename asio_ext::detail::just_operation<
+      typename asio_ext::detail::just_sender<Values...>::storage_type, R> result_type;
 };
 
 } // namespace traits
