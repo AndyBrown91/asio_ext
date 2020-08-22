@@ -267,6 +267,7 @@ struct set_done_member<asio_ext::make_receiver_detail::receiver_impl<Tags...>>
   ASIO_STATIC_CONSTEXPR(bool, is_noexcept = true);
   typedef void result_type;
 };
+
 } // namespace traits
 } // namespace asio
 
