@@ -4,7 +4,9 @@ add_executable(test
     test.cpp
     just.cpp
 	sync_wait.cpp
+    transform.cpp
 )
+
 target_link_libraries(test 
 PRIVATE
 	asio_ext

@@ -20,6 +20,7 @@
 #include <asio/execution/set_value.hpp>
 
 #include <asio_ext/sender_traits.hpp>
+#include <iostream>
 
 namespace asio_ext
 {
@@ -50,8 +51,8 @@ namespace asio_ext
             reference(shared_state<void>& state) : state_(&state) {}
             template <class... Values>
             void set_value(Values &&... v);
-            void set_done();
-            void set_error(std::exception_ptr ex);
+            inline void set_done();
+            inline void set_error(std::exception_ptr ex);
         private:
             shared_state<void>* state_;
         };
@@ -171,9 +172,16 @@ namespace asio_ext
             static auto run(Sender&& sender)
             {
                 shared_state<void> state;
+#if 1
+                using T = decltype(state.ref());
+                auto v = asio::execution::can_connect_v<Sender, T>;
+                //auto v2 = asio::traits::connect_member<Sender, void(T)>::is_valid << "\n";
+                std::cout << v << "\n";
+#else
                 auto op = asio::execution::connect(std::forward<Sender>(sender), state.ref());
                 asio::execution::start(op);
                 state.get();
+#endif
             }
         };
 
@@ -187,7 +195,7 @@ namespace asio_ext
             }
         };
     } // namespace detail
-    detail::sync_wait_cpo sync_wait;
+    constexpr inline detail::sync_wait_cpo sync_wait;
 } // namespace asio_ext
 
 #if !defined(ASIO_HAS_DEDUCED_SET_VALUE_MEMBER_TRAIT)
