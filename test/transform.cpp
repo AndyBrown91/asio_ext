@@ -8,7 +8,7 @@
 TEST_CASE("transform: basic transform") {
     int count = 0;
     auto sender = asio_ext::transform(
-        asio_ext::just(),
+        asio::execution::just(),
         [&] { ++count; }
     );
     asio_ext::sync_wait(sender);

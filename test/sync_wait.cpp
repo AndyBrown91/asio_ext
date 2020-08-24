@@ -4,11 +4,11 @@
 
 TEST_CASE("sync_wait: compile-test just()")
 {
-    asio_ext::sync_wait(asio_ext::just());
+    asio_ext::sync_wait(asio::execution::just());
 }
 
 TEST_CASE("sync_wait: just(5) == 5")
 {
-    int test = asio_ext::sync_wait(asio_ext::just(5));
+    int test = asio_ext::sync_wait(asio::execution::just(5));
     REQUIRE(test == 5);
 }

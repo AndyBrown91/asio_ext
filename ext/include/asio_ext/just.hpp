@@ -15,55 +15,77 @@
 
 namespace asio_ext
 {
-    namespace detail
-    {
-        template <class storage_type, class Receiver>
-        struct just_operation
+    namespace just {
+        namespace detail
         {
-            Receiver receiver_;
-            storage_type values_;
+            template <class storage_type, class Receiver>
+            struct operation
+            {
+                Receiver receiver_;
+                storage_type values_;
 
-            void start() ASIO_NOEXCEPT {
-                try {
-                    auto caller = [this](auto &&... values) {
-                        asio::execution::set_value(std::move(receiver_), std::forward<decltype(values)>(values)...);
-                    };
-                    std::apply(caller, std::move(values_));
+                void start() ASIO_NOEXCEPT {
+                    try {
+                        auto caller = [this](auto &&... values) {
+                            asio::execution::set_value(std::move(receiver_), std::forward<decltype(values)>(values)...);
+                        };
+                        std::apply(caller, std::move(values_));
+                    }
+                    catch (...) {
+                        asio::execution::set_error((Receiver&&)receiver_, std::current_exception());
+                    }
                 }
-                catch (...) {
-                    asio::execution::set_error((Receiver&&)receiver_, std::current_exception());
+            };
+
+            template <class... Values>
+            struct sender
+            {
+                template<template<class...> class Tuple, template<class...> class Variant>
+                using value_types = Variant<Tuple<std::decay_t<Values>...>>;
+                template<template<class...> class Variant>
+                using error_types = Variant<std::exception_ptr>;
+                static constexpr bool sends_done = false;
+
+                using storage_type = typename std::tuple<std::decay_t<Values>...>;
+                storage_type val_;
+
+                template <class... Vs, std::enable_if_t<std::is_constructible_v<storage_type, Vs...>>* = nullptr>
+                sender(Vs &&... v) : val_(std::forward<Vs>(v)...) {
                 }
-            }
-        };
 
-        template <class... Values>
-        struct just_sender
-        {
-            template<template<class...> class Tuple, template<class...> class Variant>
-            using value_types = Variant<Tuple<std::decay_t<Values>...>>;
-            template<template<class...> class Variant>
-            using error_types = Variant<std::exception_ptr>;
-            static constexpr bool sends_done = false;
+                template <class Receiver>
+                auto connect(Receiver&& recv) {
+                    return operation<
+                        storage_type, std::decay_t<Receiver>>{std::forward<Receiver>(recv), std::move(val_)};
+                }
+            };
 
-            using storage_type = typename std::tuple<std::decay_t<Values>...>;
-            storage_type val_;
+            struct just_cpo {
+                template <typename... Values>
+                detail::sender<Values...> operator()(Values&&... values) const
+                {
+                    return detail::sender<Values...>(std::forward<Values>(values)...);
+                }
+            };
 
-            template <class... Vs, std::enable_if_t<std::is_constructible_v<storage_type, Vs...>>* = nullptr>
-            just_sender(Vs &&... v) : val_(std::forward<Vs>(v)...) {
-            }
+            template <typename T = just_cpo>
+            struct static_instance
+            {
+                static const T instance;
+            };
 
-            template <class Receiver>
-            auto connect(Receiver&& recv) {
-                return just_operation<
-                    storage_type, std::decay_t<Receiver>>{std::forward<Receiver>(recv), std::move(val_)};
-            }
-        };
-    } // namespace detail
-
-    constexpr auto just = [](auto &&... value) {
-        return detail::just_sender<decltype(value)...>(std::forward<decltype(value)>(value)...);
-    };
+            template <typename T>
+            const T static_instance<T>::instance = {};
+        } // namespace detail
+    }
 } // namespace asio_ext
+
+namespace asio {
+namespace execution {
+static ASIO_CONSTEXPR const asio_ext::just::detail::just_cpo&
+      just = asio_ext::just::detail::static_instance<>::instance;
+} // namespace execution
+} // namespace asio
 
 #if !defined(ASIO_HAS_DEDUCED_START_MEMBER_TRAIT)
 
@@ -71,7 +93,7 @@ namespace asio {
 namespace traits {
 
 template <class storage_type, class Receiver>
-struct start_member<asio_ext::detail::just_operation<storage_type, Receiver>>
+struct start_member<asio_ext::just::detail::operation<storage_type, Receiver>>
 {
     ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
     ASIO_STATIC_CONSTEXPR(bool, is_noexcept = true);
@@ -88,12 +110,12 @@ namespace asio {
 namespace traits {
 
 template <class... Values, typename R>
-struct connect_member<asio_ext::detail::just_sender<Values...>, R>
+struct connect_member<asio_ext::just::detail::sender<Values...>, R>
 {
   ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
   ASIO_STATIC_CONSTEXPR(bool, is_noexcept = false);
-  typedef typename asio_ext::detail::just_operation<
-      typename asio_ext::detail::just_sender<Values...>::storage_type, R> result_type;
+  typedef typename asio_ext::just::detail::operation<
+      typename asio_ext::just::detail::sender<Values...>::storage_type, R> result_type;
 };
 
 } // namespace traits
