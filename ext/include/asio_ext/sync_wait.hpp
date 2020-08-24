@@ -174,16 +174,9 @@ namespace asio_ext
                 static auto run(Sender&& sender)
                 {
                     shared_state<void> state;
-#if 1
-                    using T = decltype(state.ref());
-                    auto v = asio::execution::can_connect_v<Sender, T>;
-                    //auto v2 = asio::traits::connect_member<Sender, void(T)>::is_valid << "\n";
-                    std::cout << v << "\n";
-#else
                     auto op = asio::execution::connect(std::forward<Sender>(sender), state.ref());
                     asio::execution::start(op);
                     state.get();
-#endif
                 }
             };
 

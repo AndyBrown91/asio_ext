@@ -13,9 +13,5 @@ TEST_CASE("transform: basic transform") {
         [&] { ++count; }
     );
     sync_wait(sender);
-    //REQUIRE(count == 1);
-    //asio::execution::submit(std::move(submiter), recv);
-
-    //REQUIRE(transform_called);
-    //REQUIRE(submitted);
+    REQUIRE(count == 1);
 }
