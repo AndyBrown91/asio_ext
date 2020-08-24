@@ -15,7 +15,8 @@
 
 namespace asio_ext
 {
-    namespace just {
+    namespace just
+    {
         namespace detail
         {
             template <class storage_type, class Receiver>
@@ -59,31 +60,32 @@ namespace asio_ext
                         storage_type, std::decay_t<Receiver>>{std::forward<Receiver>(recv), std::move(val_)};
                 }
             };
-
-            struct just_cpo {
-                template <typename... Values>
-                detail::sender<Values...> operator()(Values&&... values) const
-                {
-                    return detail::sender<Values...>(std::forward<Values>(values)...);
-                }
-            };
-
-            template <typename T = just_cpo>
-            struct static_instance
-            {
-                static const T instance;
-            };
-
-            template <typename T>
-            const T static_instance<T>::instance = {};
         } // namespace detail
+
+        struct cpo 
+        {
+            template <typename... Values>
+            detail::sender<Values...> operator()(Values&&... values) const
+            {
+                return detail::sender<Values...>(std::forward<Values>(values)...);
+            }
+        };
+
+        template <typename T = cpo>
+        struct static_instance
+        {
+            static const T instance;
+        };
+
+        template <typename T>
+        const T static_instance<T>::instance = {};
     }
 } // namespace asio_ext
 
 namespace asio {
 namespace execution {
-static ASIO_CONSTEXPR const asio_ext::just::detail::just_cpo&
-      just = asio_ext::just::detail::static_instance<>::instance;
+static ASIO_CONSTEXPR const asio_ext::just::cpo&
+      just = asio_ext::just::static_instance<>::instance;
 } // namespace execution
 } // namespace asio
 

@@ -5,13 +5,14 @@
 #include "test_receiver.hpp"
 #include <iostream>
 
+using namespace asio::execution;
 TEST_CASE("transform: basic transform") {
     int count = 0;
-    auto sender = asio_ext::transform(
-        asio::execution::just(),
+    auto sender = transform(
+        just(),
         [&] { ++count; }
     );
-    asio_ext::sync_wait(sender);
+    sync_wait(sender);
     //REQUIRE(count == 1);
     //asio::execution::submit(std::move(submiter), recv);
 
