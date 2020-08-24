@@ -81,7 +81,7 @@ namespace asio_ext
 
                 operation_state(sender_type&& sender, receiver<Receiver>&& receiver) : state_(asio::execution::connect(std::move(sender), std::move(receiver))) {}
 
-                void start() {
+                void start() ASIO_NOEXCEPT {
                     asio::execution::start(state_);
                 }
             };

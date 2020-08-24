@@ -3,7 +3,7 @@ find_package(doctest CONFIG REQUIRED)
 add_executable(test 
     test.cpp
     just.cpp
-	sync_wait.cpp
+    sync_wait.cpp
     transform.cpp
 )
 
