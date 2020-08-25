@@ -29,7 +29,7 @@ namespace asio_ext
             template <class sender_type, class receiver_type>
             struct operation_state
             {
-                using next_operation_state = decltype(asio::execution::connect(std::declval<sender_type>(), std::declval<receiver_type>()));
+                using next_operation_state = asio::execution::connect_result_t<sender_type, receiver_type>;
                 next_operation_state state_;
 
                 operation_state(sender_type&& sender, receiver_type&& receiver) : state_(asio::execution::connect(std::move(sender), std::move(receiver))) {}

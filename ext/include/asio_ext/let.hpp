@@ -94,7 +94,7 @@ namespace asio_ext
                 life_extender_type extender{ (Receiver&&)*this, std::forward<Values>(values)... };
                 auto* data_ptr = extender.data_;
                 auto next_sender = extender.call_with_arguments(function_);
-                using operations_type = asio_ext::operation_type<decltype(next_sender), life_extender_type>;
+                using operations_type = asio::execution::connect_result_t<decltype(next_sender), life_extender_type>;
                 auto* op_ptr = new operations_type(asio::execution::connect(std::move(next_sender), std::move(extender)));
                 data_ptr->operation_ = decltype(data_ptr->operation_)(op_ptr, +[](void* p) {
                     delete (static_cast<operations_type*>(p));
