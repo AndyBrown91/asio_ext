@@ -146,7 +146,7 @@ namespace asio_ext
                 static auto run(Sender&& sender)
                 {
                     using decayed = std::decay_t<Sender>;
-                    using value_types = typename asio_ext::sender_traits<decayed>::template value_types<std::tuple, std::variant>;
+                    using value_types = typename asio::execution::sender_traits<decayed>::template value_types<std::tuple, std::variant>;
                     shared_state<value_types> state;
                     auto op = asio::execution::connect(std::forward<Sender>(sender), state.ref());
                     asio::execution::start(op);
