@@ -46,7 +46,7 @@ namespace asio_ext
             >;
 
             static constexpr bool sends_done = std::disjunction<
-                std::bool_constant<asio_ext::sender_traits<Senders>::sends_done>...
+                std::bool_constant<asio::execution::sender_traits<Senders>::sends_done>...
             >::value;
 
             senders_storage senders_;
@@ -114,14 +114,14 @@ namespace asio_ext
                 void start() {
                     auto sender_to_op = [this](auto&&...senders) {
                         return operation_storage{
-                            asio_ext::connect(std::forward<decltype(senders)>(senders), op_receiver{state_})...
+                            asio::execution::connect(std::forward<decltype(senders)>(senders), op_receiver{state_})...
                         };
                     };
 
                     state_->op_storage_.emplace(std::apply(sender_to_op, std::move(senders_)));
                     boost::mp11::tuple_for_each(*state_->op_storage_, [](auto& op) {
-                        asio_ext::start(op);
-                        });
+                        asio::execution::start(op);
+                    });
                 }
             };
 

@@ -69,7 +69,7 @@ namespace asio_ext
                                     state_->next_.reset();
                                 }
                                 catch (...) {
-                                    asio_ext::set_error(*state_->next_, std::current_exception());
+                                    asio::execution::set_error(*state_->next_, std::current_exception());
                                 }
                             }
                         }
@@ -118,12 +118,14 @@ namespace asio_ext
 
                 void start() {
                     auto sender_to_op = [this](auto &&... senders) {
-                        return operation_storage{ asio_ext::connect(std::forward<decltype(senders)>(senders),
+                        return operation_storage{ asio::execution::connect(std::forward<decltype(senders)>(senders),
                                                                    op_receiver{state_})... };
                     };
 
                     state_->op_storage_.emplace(std::apply(sender_to_op, std::move(senders_)));
-                    boost::mp11::tuple_for_each(*state_->op_storage_, [](auto& op) { asio_ext::start(op); });
+                    boost::mp11::tuple_for_each(*state_->op_storage_, [](auto& op) { 
+                        asio::execution::start(op); 
+                    });
                 }
             };
 
