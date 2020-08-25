@@ -30,16 +30,10 @@ namespace asio_ext
             struct operation_state;
 
             template <class S1, class S2, class Receiver>
-            struct second_receiver
-            {
+            struct basic_receiver {
                 operation_state<S1, S2, Receiver>* state_;
 
-                second_receiver(operation_state<S1, S2, Receiver>* state) : state_(state) {}
-
-                template <class... Values>
-                void set_value(Values &&... values) {
-                    asio::execution::set_value(std::move(state_->receiver_), std::forward<Values>(values)...);
-                }
+                basic_receiver(operation_state<S1, S2, Receiver>* state) : state_(state) {}
 
                 void set_done() {
                     asio::execution::set_done(std::move(state_->receiver_));
@@ -52,23 +46,22 @@ namespace asio_ext
             };
 
             template <class S1, class S2, class Receiver>
-            struct first_receiver
+            struct second_receiver : public basic_receiver<S1, S2, Receiver>
             {
-                operation_state<S1, S2, Receiver>* state_;
+                using basic_receiver::basic_receiver;
+                template <class... Values>
+                void set_value(Values &&... values) {
+                    asio::execution::set_value(std::move(state_->receiver_), std::forward<Values>(values)...);
+                }
+            };
 
-                first_receiver(operation_state<S1, S2, Receiver>* state) : state_(state) {}
+            template <class S1, class S2, class Receiver>
+            struct first_receiver : public basic_receiver<S1, S2, Receiver>
+            {
+                using basic_receiver::basic_receiver;
 
                 template <class... Values>
                 inline void set_value(Values &&...);
-
-                void set_done() {
-                    asio::execution::set_done(std::move(state_->receiver_));
-                }
-
-                template <class E>
-                void set_error(E&& error) {
-                    asio::execution::set_error(std::move(state_->receiver_), std::forward<E>(error));
-                }
             };
 
             template <class S1, class S2, class Receiver>
@@ -181,3 +174,117 @@ static ASIO_CONSTEXPR const asio_ext::sequence::cpo&
       sequence = asio_ext::sequence::static_instance<>::instance;
 } // namespace execution
 } // namespace asio
+
+#if !defined(ASIO_HAS_DEDUCED_START_MEMBER_TRAIT)
+
+namespace asio {
+namespace traits {
+
+template <class S1, class S2, class Receiver>
+struct start_member<asio_ext::sequence::detail::operation_state<S1, S2, Receiver>>
+{
+    ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
+    ASIO_STATIC_CONSTEXPR(bool, is_noexcept = true);
+    typedef void result_type;
+};
+
+} // namespace traits
+} // namespace asio
+#endif // !defined(ASIO_HAS_DEDUCED_START_MEMBER_TRAIT)
+
+#if !defined(ASIO_HAS_DEDUCED_CONNECT_MEMBER_TRAIT)
+
+namespace asio {
+namespace traits {
+
+template <class S1, class S2, typename R>
+struct connect_member<asio_ext::sequence::detail::sequence_sender<S1, S2>, R>
+{
+  ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
+  ASIO_STATIC_CONSTEXPR(bool, is_noexcept = false);
+  typedef typename 
+      asio_ext::sequence::detail::operation_state<S1, S2, asio_ext::remove_cvref_t<R>> result_type;
+};
+
+} // namespace traits
+} // namespace asio
+
+#endif // !defined(ASIO_HAS_DEDUCED_CONNECT_MEMBER_TRAIT)
+
+#if !defined(ASIO_HAS_DEDUCED_SET_VALUE_MEMBER_TRAIT)
+
+namespace asio {
+namespace traits {
+
+template <class S1, class S2, class Receiver, class... Values>
+struct set_value_member<asio_ext::sequence::detail::first_receiver<S1, S2, Receiver>, void(Values...)>
+{
+  ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
+  ASIO_STATIC_CONSTEXPR(bool, is_noexcept = false);
+  typedef void result_type;
+};
+
+template <class S1, class S2, class Receiver, class... Values>
+struct set_value_member<asio_ext::sequence::detail::second_receiver<S1, S2, Receiver>, void(Values...)>
+{
+    ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
+    ASIO_STATIC_CONSTEXPR(bool, is_noexcept = false);
+    typedef void result_type;
+};
+
+} // namespace traits
+} // namespace asio
+
+#endif // !defined(ASIO_HAS_DEDUCED_SET_VALUE_MEMBER_TRAIT)
+
+#if !defined(ASIO_HAS_DEDUCED_SET_ERROR_MEMBER_TRAIT)
+
+namespace asio {
+namespace traits {
+
+template <class S1, class S2, class Receiver, class E>
+struct set_error_member<asio_ext::sequence::detail::first_receiver<S1, S2, Receiver>, E>
+{
+  ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
+  ASIO_STATIC_CONSTEXPR(bool, is_noexcept = true);
+  typedef void result_type;
+};
+
+template <class S1, class S2, class Receiver, class E>
+struct set_error_member<asio_ext::sequence::detail::second_receiver<S1, S2, Receiver>, E>
+{
+    ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
+    ASIO_STATIC_CONSTEXPR(bool, is_noexcept = true);
+    typedef void result_type;
+};
+
+} // namespace traits
+} // namespace asio
+
+#endif // !defined(ASIO_HAS_DEDUCED_SET_ERROR_MEMBER_TRAIT)
+
+#if !defined(ASIO_HAS_DEDUCED_SET_DONE_MEMBER_TRAIT)
+
+namespace asio {
+namespace traits {
+
+template <class S1, class S2, class Receiver>
+struct set_done_member<asio_ext::sequence::detail::first_receiver<S1, S2, Receiver>>
+{
+  ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
+  ASIO_STATIC_CONSTEXPR(bool, is_noexcept = true);
+  typedef void result_type;
+};
+
+template <class S1, class S2, class Receiver>
+struct set_done_member<asio_ext::sequence::detail::second_receiver<S1, S2, Receiver>>
+{
+    ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
+    ASIO_STATIC_CONSTEXPR(bool, is_noexcept = true);
+    typedef void result_type;
+};
+
+} // namespace traits
+} // namespace asio
+
+#endif // !defined(ASIO_HAS_DEDUCED_SET_DONE_MEMBER_TRAIT)

@@ -185,6 +185,7 @@ struct connect_member<asio_ext::transform::detail::sender<Sender, Function>, R>
 } // namespace asio
 
 #endif // !defined(ASIO_HAS_DEDUCED_CONNECT_MEMBER_TRAIT)
+
 #if !defined(ASIO_HAS_DEDUCED_SET_VALUE_MEMBER_TRAIT)
 
 namespace asio {
