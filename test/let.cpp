@@ -22,7 +22,7 @@ TEST_CASE("let: multiple values have extended lifetime") {
     const std::string* ptr2 = nullptr;
     const std::string* ptr3 = nullptr;
     const std::string* ptr4 = nullptr;
-    auto let_sender = asio_ext::let(just(hello, world),
+    auto let_sender = let(just(hello, world),
         [&](std::string& str, const std::string& str2) {
             ptr1 = &str;
             ptr2 = &str2;
