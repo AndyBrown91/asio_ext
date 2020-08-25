@@ -8,7 +8,7 @@ add_executable(test
     transform.cpp
     when_any.cpp
     when_all.cpp
-)
+ "sequence.cpp")
 
 target_link_libraries(test 
 PRIVATE
