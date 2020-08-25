@@ -14,20 +14,18 @@ auto lazy(F&& f) {
 TEST_CASE("basic sequence test")
 {
     std::string result;
-    sync_wait(asio_ext::sequence(
+    sync_wait(sequence(
         lazy([&] { result = "Done"; }
     )));
     REQUIRE(result == "Done");
 }
 
-#if 0
 TEST_CASE("More sequence senders test")
 {
     std::string result;
-    sync_wait(asio_ext::sequence(
+    sync_wait(sequence(
         lazy([&] { result += "1"; }),
         lazy([&] { result += "2"; })
     ));
     REQUIRE(result == "12");
 }
-#endif

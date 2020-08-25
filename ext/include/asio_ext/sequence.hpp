@@ -22,127 +22,162 @@
 
 namespace asio_ext
 {
-    namespace detail
+    namespace sequence
     {
-        template <class... Senders>
-        struct sequence_sender;
-
-        template <class S1, class S2>
-        struct sequence_sender<S1, S2>
+        namespace detail
         {
-            template <template <class...> class Tuple, template <class...> class Variant>
-            using value_types = typename asio::execution::sender_traits<S2>::template value_types<Tuple, Variant>;
+            template <class S1, class S2, class Receiver>
+            struct operation_state;
 
-            template <template <class...> class Variant>
-            using error_types = asio_ext::append_error_types<Variant, S2, std::exception_ptr>;
+            template <class S1, class S2, class Receiver>
+            struct second_receiver
+            {
+                operation_state<S1, S2, Receiver>* state_;
 
-            static constexpr bool sends_done = asio::execution::sender_traits<S2>::sends_done;
+                second_receiver(operation_state<S1, S2, Receiver>* state) : state_(state) {}
 
-            template <class Receiver>
+                template <class... Values>
+                void set_value(Values &&... values) {
+                    asio::execution::set_value(std::move(state_->receiver_), std::forward<Values>(values)...);
+                }
+
+                void set_done() {
+                    asio::execution::set_done(std::move(state_->receiver_));
+                }
+
+                template <class E>
+                void set_error(E&& error) {
+                    asio::execution::set_error(std::move(state_->receiver_), std::forward<E>(error));
+                }
+            };
+
+            template <class S1, class S2, class Receiver>
+            struct first_receiver
+            {
+                operation_state<S1, S2, Receiver>* state_;
+
+                first_receiver(operation_state<S1, S2, Receiver>* state) : state_(state) {}
+
+                template <class... Values>
+                inline void set_value(Values &&...);
+
+                void set_done() {
+                    asio::execution::set_done(std::move(state_->receiver_));
+                }
+
+                template <class E>
+                void set_error(E&& error) {
+                    asio::execution::set_error(std::move(state_->receiver_), std::forward<E>(error));
+                }
+            };
+
+            template <class S1, class S2, class Receiver>
             struct operation_state
             {
-                struct second_receiver
-                {
-                    operation_state* state_;
-
-                    second_receiver(operation_state* state) : state_(state) {
-                    }
-
-                    template <class... Values>
-                    void set_value(Values &&... values) {
-                        asio::execution::set_value(std::move(state_->receiver_), std::forward<Values>(values)...);
-                    }
-
-                    void set_done() {
-                        asio::execution::set_done(std::move(state_->receiver_));
-                    }
-
-                    template <class E>
-                    void set_error(E&& error) {
-                        asio::execution::set_error(std::move(state_->receiver_), std::forward<E>(error));
-                    }
-                };
-                struct first_receiver
-                {
-                    operation_state* state_;
-
-                    first_receiver(operation_state* state) : state_(state) {
-                    }
-
-                    template <class... Values>
-                    void set_value(Values &&...) {
-                        // this will be destroyed below! Only use local variables!!!
-                        auto* state = state_;
-                        try {
-                            auto& ref = state->state_.template emplace<1>(
-                                asio::execution::connect(state_->second_sender_, second_receiver(state)));
-                            auto index = state->state_.index();
-                            auto valueless = state->state_.valueless_by_exception();
-                            asio::execution::start(ref);
-                        }
-                        catch (...) {
-                            asio::execution::set_error(std::move(state->receiver_), std::current_exception());
-                        }
-                    }
-
-                    void set_done() {
-                        asio::execution::set_done(std::move(state_->receiver_));
-                    }
-
-                    template <class E>
-                    void set_error(E&& error) {
-                        asio::execution::set_error(std::move(state_->receiver_), std::forward<E>(error));
-                    }
-                };
-
                 operation_state(S1&& first, S2&& second, Receiver receiver)
                     : first_sender_(std::move(first)), second_sender_(std::move(second)),
                     receiver_(std::move(receiver)), state_(std::in_place_index<2>) {
                 }
 
-                void start() {
+                void start() ASIO_NOEXCEPT {
                     auto& ref = state_.template emplace<0>(
-                        asio::execution::connect(std::move(first_sender_), first_receiver(this)));
+                        asio::execution::connect(
+                            std::move(first_sender_), 
+                            first_receiver<S1, S2, Receiver>(this)));
                     asio::execution::start(ref);
                 }
 
                 using first_connect_type = asio_ext::remove_cvref_t<decltype(
-                    asio::execution::connect(std::declval<S1&&>(), std::declval<first_receiver&&>()))>;
+                    asio::execution::connect(
+                        std::declval<S1&&>(), 
+                        std::declval<first_receiver<S1, S2, Receiver>&&>()))>;
                 using second_connect_type = asio_ext::remove_cvref_t<decltype(
-                    asio::execution::connect(std::declval<S2&>(), std::declval<second_receiver&&>()))>;
+                    asio::execution::connect(
+                        std::declval<S2&>(), 
+                        std::declval<second_receiver<S1, S2, Receiver>&&>()))>;
                 asio_ext::remove_cvref_t<S1> first_sender_;
                 asio_ext::remove_cvref_t<S2> second_sender_;
                 Receiver receiver_;
                 std::variant<first_connect_type, second_connect_type, std::monostate> state_;
             };
 
-            asio_ext::remove_cvref_t<S1> first_;
-            asio_ext::remove_cvref_t<S2> second_;
-
-            template <class T1, class T2>
-            sequence_sender(T1&& t1, T2&& t2)
-                : first_(std::move_if_noexcept(t1)), second_(std::move_if_noexcept(t2)) {
+            template <class S1, class S2, class Receiver>
+            template <class... Values>
+            void first_receiver<S1, S2, Receiver>::set_value(Values &&...) {
+                // this will be destroyed below! Only use local variables!!!
+                auto* state = state_;
+                try {
+                    auto& ref = state->state_.template emplace<1>(
+                        asio::execution::connect(state_->second_sender_, second_receiver(state)));
+                    auto index = state->state_.index();
+                    auto valueless = state->state_.valueless_by_exception();
+                    asio::execution::start(ref);
+                }
+                catch (...) {
+                    asio::execution::set_error(std::move(state->receiver_), std::current_exception());
+                }
             }
 
-            template <class Receiver>
-            auto connect(Receiver&& receiver) {
-                return operation_state<asio_ext::remove_cvref_t<Receiver>>(
-                    std::move(first_), std::move(second_), std::move(receiver));
+            template <class... Senders>
+            struct sequence_sender;
+
+            template <class S1, class S2>
+            struct sequence_sender<S1, S2>
+            {
+                template <template <class...> class Tuple, template <class...> class Variant>
+                using value_types = typename asio::execution::sender_traits<S2>::template value_types<Tuple, Variant>;
+
+                template <template <class...> class Variant>
+                using error_types = asio_ext::append_error_types<Variant, S2, std::exception_ptr>;
+
+                static constexpr bool sends_done = asio::execution::sender_traits<S2>::sends_done;
+
+                asio_ext::remove_cvref_t<S1> first_;
+                asio_ext::remove_cvref_t<S2> second_;
+
+                template <class T1, class T2>
+                sequence_sender(T1&& t1, T2&& t2)
+                    : first_(std::move_if_noexcept(t1)), second_(std::move_if_noexcept(t2)) {
+                }
+
+                template <class Receiver>
+                auto connect(Receiver&& receiver) {
+                    return operation_state<S1, S2, asio_ext::remove_cvref_t<Receiver>>(
+                        std::move(first_), std::move(second_), std::move(receiver));
+                }
+            };
+        } // namespace detail
+
+        struct cpo
+        {
+            template <class Sender>
+            std::decay_t<Sender> operator()(Sender&& sender) const {
+                return std::forward<Sender>(sender);
+            }
+
+            template <class S1, class... Senders>
+            auto operator()(S1&& s1, Senders &&... senders) const {
+                using next_type = decltype(cpo{}(std::forward<Senders>(senders)...));
+                return detail::sequence_sender<asio_ext::remove_cvref_t<S1>,
+                    asio_ext::remove_cvref_t<next_type>>(
+                        std::forward<S1>(s1), next_type(std::forward<Senders>(senders)...));
             }
         };
-    } // namespace detail
 
-    template <class Sender>
-    std::decay_t<Sender> sequence(Sender&& sender) {
-        return std::forward<Sender>(sender);
-    }
+        template <typename T = cpo>
+        struct static_instance
+        {
+            static const T instance;
+        };
 
-    template <class S1, class... Senders>
-    auto sequence(S1&& s1, Senders &&... senders) {
-        using next_type = decltype(sequence(std::forward<Senders>(senders)...));
-        ;
-        return detail::sequence_sender<asio_ext::remove_cvref_t<S1>,
-            asio_ext::remove_cvref_t<next_type>>(
-                std::forward<S1>(s1), ::asio_ext::sequence(std::forward<Senders>(senders)...));
+        template <typename T>
+        const T static_instance<T>::instance = {};
     }
 } // namespace asio_ext
+
+namespace asio {
+namespace execution {
+static ASIO_CONSTEXPR const asio_ext::sequence::cpo&
+      sequence = asio_ext::sequence::static_instance<>::instance;
+} // namespace execution
+} // namespace asio

@@ -3,12 +3,13 @@ find_package(doctest CONFIG REQUIRED)
 add_executable(test 
     just.cpp
     let.cpp
+    sequence.cpp
     sync_wait.cpp
     test.cpp
     transform.cpp
     when_any.cpp
     when_all.cpp
- "sequence.cpp")
+)
 
 target_link_libraries(test 
 PRIVATE
