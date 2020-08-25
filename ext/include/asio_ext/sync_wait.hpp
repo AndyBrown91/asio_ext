@@ -187,7 +187,7 @@ namespace asio_ext
             template <class Sender>
             constexpr auto operator()(Sender&& sender) const {
                 using decayed = std::decay_t<Sender>;
-                using value_types = typename asio_ext::sender_traits<decayed>::template value_types<std::tuple, std::variant>;
+                using value_types = typename asio::execution::sender_traits<decayed>::template value_types<std::tuple, std::variant>;
                 return asio_ext::sync_wait::detail::valued_sync_wait_impl<value_types>::run(std::forward<Sender>(sender));
             }
         };

@@ -123,7 +123,7 @@ namespace asio_ext
                 {
                     template <class ST>
                     using extractor =
-                        typename asio_ext::sender_traits<ST>::template value_types<Tuple, Variant>;
+                        typename asio::execution::sender_traits<ST>::template value_types<Tuple, Variant>;
 
                     using sender_value_types =
                         boost::mp11::mp_transform<extractor, function_result_types<Variant>>;
@@ -141,9 +141,9 @@ namespace asio_ext
 
                 template <template <class...> class Variant>
                 using error_types =
-                    typename asio_ext::sender_traits<sender_type>::template error_types<Variant>;
+                    typename asio::execution::sender_traits<sender_type>::template error_types<Variant>;
 
-                static constexpr bool sends_done = asio_ext::sender_traits<sender_type>::sends_done;
+                static constexpr bool sends_done = asio::execution::sender_traits<sender_type>::sends_done;
 
                 template <class S, class F>
                 sender(S&& s, F&& f) : sender_(std::forward<S>(s)), function_(std::forward<F>(f)) {

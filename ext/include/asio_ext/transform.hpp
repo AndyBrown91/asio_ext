@@ -106,7 +106,7 @@ namespace asio_ext
                 template<template<class...> class Variant>
                 using error_types = asio_ext::append_error_types<Variant, sender_type, std::exception_ptr>;
 
-                static constexpr bool sends_done = asio_ext::sender_traits<sender_type>::sends_done;
+                static constexpr bool sends_done = asio::execution::sender_traits<sender_type>::sends_done;
 
                 template<class Receiver>
                 auto connect(Receiver&& recv) {
