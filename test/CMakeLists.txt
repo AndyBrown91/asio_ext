@@ -5,6 +5,7 @@ add_executable(test
     just.cpp
     sync_wait.cpp
     transform.cpp
+    let.cpp
 )
 
 target_link_libraries(test 
