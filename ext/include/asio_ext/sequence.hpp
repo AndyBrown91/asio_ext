@@ -139,7 +139,7 @@ namespace asio_ext
 
     template <class S1, class... Senders>
     auto sequence(S1&& s1, Senders &&... senders) {
-        using next_type = decltype(::asio_ext::sequence(std::forward<Senders>(senders)...));
+        using next_type = decltype(sequence(std::forward<Senders>(senders)...));
         ;
         return detail::sequence_sender<asio_ext::remove_cvref_t<S1>,
             asio_ext::remove_cvref_t<next_type>>(
