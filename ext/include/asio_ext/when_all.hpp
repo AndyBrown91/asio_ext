@@ -8,7 +8,6 @@
 
 #include <atomic>
 #include <memory>
-#include <optional>
 #include <tuple>
 #include <utility>
 
@@ -23,6 +22,7 @@
 
 #include <asio_ext/sender_traits.hpp>
 #include <asio_ext/type_traits.hpp>
+#include <asio_ext/detail/optional.hpp>
 
 namespace asio_ext
 {
@@ -81,9 +81,9 @@ namespace asio_ext
             template <typename Receiver, class... Senders>
             struct shared_state
             {
-                std::optional<Receiver> next_;
+                asio_ext::optional<Receiver> next_;
                 int waiting_for_;
-                std::optional<operation_storage_t<Receiver, Senders...>> op_storage_;
+                asio_ext::optional<operation_storage_t<Receiver, Senders...>> op_storage_;
 
                 shared_state(Receiver&& recv, int waiting_for)
                     : next_(std::move(recv)), waiting_for_(waiting_for) {

@@ -8,7 +8,6 @@
 
 #include <atomic>
 #include <exception>
-#include <optional>
 #include <thread>
 #include <variant>
 #include <tuple>
@@ -19,7 +18,9 @@
 #include <asio/execution/set_error.hpp>
 #include <asio/execution/set_value.hpp>
 
+#include <asio_ext/detail/optional.hpp>
 #include <asio_ext/sender_traits.hpp>
+
 #include <iostream>
 
 namespace asio_ext
@@ -80,7 +81,7 @@ namespace asio_ext
             private:
                 std::exception_ptr exception_;
                 std::atomic_bool has_been_set_{ false };
-                std::optional<T> value;
+                asio_ext::optional<T> value;
             };
 
             template <typename T>

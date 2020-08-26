@@ -7,7 +7,6 @@
 #pragma once
 
 #include <memory>
-#include <optional>
 #include <tuple>
 
 #include <asio/execution/connect.hpp>
@@ -19,6 +18,7 @@
 #include <boost/mp11/tuple.hpp>
 #include <boost/mp11/algorithm.hpp>
 
+#include <asio_ext/detail/optional.hpp>
 #include <asio_ext/type_traits.hpp>
 #include <asio_ext/sender_traits.hpp>
 
@@ -75,8 +75,8 @@ namespace asio_ext
                     std::tuple<asio::execution::connect_result_t<Senders, 
                     op_receiver<Receiver, Senders...>>...>;
 
-                std::optional<Receiver> next_;
-                std::optional<operation_storage> op_storage_;
+                asio_ext::optional<Receiver> next_;
+                asio_ext::optional<operation_storage> op_storage_;
 
                 shared_state(Receiver&& recv) : next_(std::move(recv)) {}
             };

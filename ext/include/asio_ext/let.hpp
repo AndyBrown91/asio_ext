@@ -9,7 +9,6 @@
 #include <memory>
 #include <tuple>
 #include <variant>
-#include <optional>
 
 #include <asio/execution/connect.hpp>
 #include <asio/execution/set_value.hpp>
