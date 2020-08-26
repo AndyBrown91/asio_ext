@@ -30,10 +30,16 @@ namespace asio_ext
             struct operation_state;
 
             template <class S1, class S2, class Receiver>
-            struct basic_receiver {
+            struct second_receiver
+            {
                 operation_state<S1, S2, Receiver>* state_;
 
-                basic_receiver(operation_state<S1, S2, Receiver>* state) : state_(state) {}
+                second_receiver(operation_state<S1, S2, Receiver>* state) : state_(state) {}
+
+                template <class... Values>
+                void set_value(Values &&... values) {
+                    asio::execution::set_value(std::move(state_->receiver_), std::forward<Values>(values)...);
+                }
 
                 void set_done() {
                     asio::execution::set_done(std::move(state_->receiver_));
@@ -46,22 +52,23 @@ namespace asio_ext
             };
 
             template <class S1, class S2, class Receiver>
-            struct second_receiver : public basic_receiver<S1, S2, Receiver>
+            struct first_receiver
             {
-                using basic_receiver::basic_receiver;
-                template <class... Values>
-                void set_value(Values &&... values) {
-                    asio::execution::set_value(std::move(state_->receiver_), std::forward<Values>(values)...);
-                }
-            };
+                operation_state<S1, S2, Receiver>* state_;
 
-            template <class S1, class S2, class Receiver>
-            struct first_receiver : public basic_receiver<S1, S2, Receiver>
-            {
-                using basic_receiver::basic_receiver;
+                first_receiver(operation_state<S1, S2, Receiver>* state) : state_(state) {}
 
                 template <class... Values>
                 inline void set_value(Values &&...);
+
+                void set_done() {
+                    asio::execution::set_done(std::move(state_->receiver_));
+                }
+
+                template <class E>
+                void set_error(E&& error) {
+                    asio::execution::set_error(std::move(state_->receiver_), std::forward<E>(error));
+                }
             };
 
             template <class S1, class S2, class Receiver>
