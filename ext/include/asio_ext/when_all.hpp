@@ -91,6 +91,13 @@ namespace asio_ext
             };
 
             template <class Receiver, class... Senders>
+            op_receiver<Receiver, Senders...>
+                make_op_receiver(std::shared_ptr<shared_state<Receiver, Senders...>> state_)
+            {
+                return  op_receiver<Receiver, Senders...>{state_};
+            }
+
+            template <class Receiver, class... Senders>
             struct operation_state
             {
                 using senders_storage = std::tuple<Senders...>;
@@ -113,7 +120,7 @@ namespace asio_ext
                         return operation_storage_t<Receiver, Senders...>{
                             asio::execution::connect(
                                 std::forward<decltype(senders)>(senders),
-                                op_receiver<Receiver, Senders...>{state_})... };
+                                make_op_receiver(state_))... };
                     };
 
                     state_->op_storage_.emplace(std::apply(sender_to_op, std::move(senders_)));
