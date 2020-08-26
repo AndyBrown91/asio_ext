@@ -24,97 +24,86 @@
 
 namespace asio_ext
 {
-    namespace detail
+    namespace when_any
     {
-        template<class...Senders>
-        struct when_any_op
+        namespace detail
         {
-            using senders_storage = std::tuple<Senders...>;
+            template <typename Receiver, class... Senders>
+            struct shared_state;
 
-            template<template<class...> class Tuple, template<class...> class Variant>
-            using value_types = boost::mp11::mp_unique<
-                boost::mp11::mp_append<
-                typename asio::execution::sender_traits<Senders>::template value_types<Tuple, Variant>...
-                >
-            >;
+            template <typename Receiver, class... Senders>
+            struct op_receiver
+            {
+                std::shared_ptr<shared_state<Receiver, Senders...>> state_;
+                template<class...Values>
+                void set_value(Values&&...values)
+                {
+                    if (state_->next_) {
+                        try {
+                            asio::execution::set_value(*state_->next_, std::forward<Values>(values)...);
+                            state_->next_.reset();
+                        }
+                        catch (...) {
+                            asio::execution::set_error(*state_->next_, std::current_exception());
+                        }
+                    }
+                    state_.reset();
+                }
 
-            template<template<class...> class Variant>
-            using error_types = boost::mp11::mp_unique<
-                boost::mp11::mp_append<
-                typename asio::execution::sender_traits<Senders>::template error_types<Variant>...
-                >
-            >;
+                template<class E>
+                void set_error(E&& e) {
+                    if (state_->next_) {
+                        asio::execution::set_error(*state_->next_, std::forward<E>(e));
+                        state_->next_.reset();
+                    }
+                    state_.reset();
+                }
 
-            static constexpr bool sends_done = std::disjunction<
-                std::bool_constant<asio::execution::sender_traits<Senders>::sends_done>...
-            >::value;
+                void set_done() noexcept {
+                    if (state_->next_) {
+                        asio::execution::set_done(*state_->next_);
+                        state_->next_.reset();
+                    }
+                    state_.reset();
+                }
+            };
 
-            senders_storage senders_;
+            template <typename Receiver, class... Senders>
+            struct shared_state
+            {
+                using operation_storage =
+                    std::tuple<asio::execution::connect_result_t<Senders, 
+                    op_receiver<Receiver, Senders...>>...>;
 
-            template<class...Tx, std::enable_if_t<std::is_constructible_v<senders_storage, Tx...>>* = nullptr>
-            explicit when_any_op(Tx &&...tx) : senders_(std::forward<Tx>(tx)...) {}
+                std::optional<Receiver> next_;
+                std::optional<operation_storage> op_storage_;
 
-            template<class Receiver>
+                shared_state(Receiver&& recv) : next_(std::move(recv)) {}
+            };
+
+            template<class Receiver, class... Senders>
             struct operation_state
             {
-                struct shared_state;
-                struct op_receiver
-                {
-                    std::shared_ptr<shared_state> state_;
-                    template<class...Values>
-                    void set_value(Values&&...values)
-                    {
-                        if (state_->next_) {
-                            try {
-                                asio::execution::set_value(*state_->next_, std::forward<Values>(values)...);
-                                state_->next_.reset();
-                            }
-                            catch (...) {
-                                asio::execution::set_error(*state_->next_, std::current_exception());
-                            }
-                        }
-                        state_.reset();
-                    }
-
-                    template<class E>
-                    void set_error(E&& e) {
-                        if (state_->next_) {
-                            asio::execution::set_error(*state_->next_, std::forward<E>(e));
-                            state_->next_.reset();
-                        }
-                        state_.reset();
-                    }
-
-                    void set_done() noexcept {
-                        if (state_->next_) {
-                            asio::execution::set_done(*state_->next_);
-                            state_->next_.reset();
-                        }
-                        state_.reset();
-                    }
-                };
-                using operation_storage = std::tuple<asio::execution::connect_result_t<Senders, op_receiver>...>;
+                using senders_storage = std::tuple<Senders...>;
+                using shared_state_t = shared_state<Receiver, Senders...>;
+                using operation_storage =
+                    std::tuple<asio::execution::connect_result_t<Senders,
+                    op_receiver<Receiver, Senders...>>...>;
 
                 senders_storage senders_;
 
-                struct shared_state
-                {
-                    std::optional<Receiver> next_;
-                    std::optional<operation_storage> op_storage_;
-
-                    shared_state(Receiver&& recv) : next_(std::move(recv)) {}
-                };
-
-                std::shared_ptr<shared_state> state_;
+                std::shared_ptr<shared_state_t> state_;
 
                 template<class Rx>
                 operation_state(senders_storage&& senders, Rx&& receiver) : senders_(std::move(senders)),
-                    state_(std::make_unique<shared_state>(std::forward<Rx>(receiver))) {}
+                    state_(std::make_unique<shared_state_t>(std::forward<Rx>(receiver))) {}
 
-                void start() {
+                void start() ASIO_NOEXCEPT {
                     auto sender_to_op = [this](auto&&...senders) {
                         return operation_storage{
-                            asio::execution::connect(std::forward<decltype(senders)>(senders), op_receiver{state_})...
+                            asio::execution::connect(
+                                std::forward<decltype(senders)>(senders),
+                                op_receiver<Receiver, Senders...>{state_})...
                         };
                     };
 
@@ -125,22 +114,74 @@ namespace asio_ext
                 }
             };
 
-            template<class Receiver>
-            auto connect(Receiver&& receiver)
+            template<class...Senders>
+            struct when_any_op
             {
-                return operation_state<asio_ext::remove_cvref_t<Receiver>>(std::move(senders_), std::forward<Receiver>(receiver));
+                using senders_storage = std::tuple<Senders...>;
+
+                template<template<class...> class Tuple, template<class...> class Variant>
+                using value_types = boost::mp11::mp_unique<
+                    boost::mp11::mp_append<
+                    typename asio::execution::sender_traits<Senders>::template value_types<Tuple, Variant>...
+                    >
+                >;
+
+                template<template<class...> class Variant>
+                using error_types = boost::mp11::mp_unique<
+                    boost::mp11::mp_append<
+                    typename asio::execution::sender_traits<Senders>::template error_types<Variant>...
+                    >
+                >;
+
+                static constexpr bool sends_done = std::disjunction<
+                    std::bool_constant<asio::execution::sender_traits<Senders>::sends_done>...
+                >::value;
+
+                senders_storage senders_;
+
+                template<class...Tx, std::enable_if_t<std::is_constructible_v<senders_storage, Tx...>>* = nullptr>
+                explicit when_any_op(Tx &&...tx) : senders_(std::forward<Tx>(tx)...) {}
+
+                template<class Receiver>
+                auto connect(Receiver&& receiver)
+                {
+                    return operation_state<asio_ext::remove_cvref_t<Receiver>, Senders...>
+                        (std::move(senders_), std::forward<Receiver>(receiver));
+                }
+            };
+        }
+
+        struct cpo
+        {
+            template<class Sender>
+            auto operator()(Sender&& sender) const {
+                return std::forward<asio_ext::remove_cvref_t<Sender>>(sender);
+            }
+
+            template<class First, class... Rest>
+            auto operator()(First&& first, Rest&&... rest) const {
+                return detail::when_any_op<
+                    asio_ext::remove_cvref_t<First>,
+                    asio_ext::remove_cvref_t<Rest>...>(
+                    std::forward<First>(first),
+                    std::forward<Rest>(rest)...);
             }
         };
-    }
 
-    template<class Sender>
-    auto when_any(Sender&& sender) {
-        return std::forward<asio_ext::remove_cvref_t<Sender>>(sender);
-    }
+        template <typename T = cpo>
+        struct static_instance
+        {
+            static const T instance;
+        };
 
-    template<class...Senders>
-    auto when_any(Senders&&...senders) {
-        static_assert(sizeof...(Senders) > 0, "when_any must take at least 1 sender");
-        return detail::when_any_op<asio_ext::remove_cvref_t<Senders>...>(std::forward<Senders>(senders)...);
+        template <typename T>
+        const T static_instance<T>::instance = {};
     }
 } // namespace asio_ext
+
+namespace asio {
+namespace execution {
+static ASIO_CONSTEXPR const asio_ext::when_any::cpo&
+      when_any = asio_ext::when_any::static_instance<>::instance;
+} // namespace execution
+} // namespace asio

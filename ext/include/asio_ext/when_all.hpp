@@ -94,7 +94,7 @@ namespace asio_ext
             op_receiver<Receiver, Senders...>
                 make_op_receiver(std::shared_ptr<shared_state<Receiver, Senders...>> state_)
             {
-                return  op_receiver<Receiver, Senders...>{state_};
+                return op_receiver<Receiver, Senders...>{std::move(state_)};
             }
 
             template <class Receiver, class... Senders>
