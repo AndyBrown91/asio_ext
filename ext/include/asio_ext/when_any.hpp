@@ -81,6 +81,13 @@ namespace asio_ext
                 shared_state(Receiver&& recv) : next_(std::move(recv)) {}
             };
 
+            template <class Receiver, class... Senders>
+            op_receiver<Receiver, Senders...>
+                make_op_receiver(std::shared_ptr<shared_state<Receiver, Senders...>> state_)
+            {
+                return op_receiver<Receiver, Senders...>{std::move(state_)};
+            }
+
             template<class Receiver, class... Senders>
             struct operation_state
             {
@@ -103,8 +110,7 @@ namespace asio_ext
                         return operation_storage{
                             asio::execution::connect(
                                 std::forward<decltype(senders)>(senders),
-                                op_receiver<Receiver, Senders...>{state_})...
-                        };
+                                make_op_receiver(state_))... };
                     };
 
                     state_->op_storage_.emplace(std::apply(sender_to_op, std::move(senders_)));
@@ -185,3 +191,94 @@ static ASIO_CONSTEXPR const asio_ext::when_any::cpo&
       when_any = asio_ext::when_any::static_instance<>::instance;
 } // namespace execution
 } // namespace asio
+
+#if !defined(ASIO_HAS_DEDUCED_START_MEMBER_TRAIT)
+
+namespace asio {
+namespace traits {
+
+template <class Receiver, class... Senders>
+struct start_member<asio_ext::when_any::detail::operation_state<Receiver, Senders...>>
+{
+    ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
+    ASIO_STATIC_CONSTEXPR(bool, is_noexcept = true);
+    typedef void result_type;
+};
+
+} // namespace traits
+} // namespace asio
+#endif // !defined(ASIO_HAS_DEDUCED_START_MEMBER_TRAIT)
+
+#if !defined(ASIO_HAS_DEDUCED_CONNECT_MEMBER_TRAIT)
+
+namespace asio {
+namespace traits {
+
+template <class... Senders, typename R>
+struct connect_member<asio_ext::when_any::detail::when_any_op<Senders...>, R>
+{
+  ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
+  ASIO_STATIC_CONSTEXPR(bool, is_noexcept = false);
+  typedef typename 
+      asio_ext::when_any::detail::operation_state<asio_ext::remove_cvref_t<R>, Senders...>
+      result_type;
+};
+
+} // namespace traits
+} // namespace asio
+
+#endif // !defined(ASIO_HAS_DEDUCED_CONNECT_MEMBER_TRAIT)
+
+#if !defined(ASIO_HAS_DEDUCED_SET_VALUE_MEMBER_TRAIT)
+
+namespace asio {
+namespace traits {
+
+template <typename Receiver, class... Senders, class... Values>
+struct set_value_member<asio_ext::when_any::detail::op_receiver<Receiver, Senders...>, void(Values...)>
+{
+  ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
+  ASIO_STATIC_CONSTEXPR(bool, is_noexcept = false);
+  typedef void result_type;
+};
+
+} // namespace traits
+} // namespace asio
+
+#endif // !defined(ASIO_HAS_DEDUCED_SET_VALUE_MEMBER_TRAIT)
+
+#if !defined(ASIO_HAS_DEDUCED_SET_ERROR_MEMBER_TRAIT)
+
+namespace asio {
+namespace traits {
+
+template <typename Receiver, class... Senders, typename E>
+struct set_error_member<asio_ext::when_any::detail::op_receiver<Receiver, Senders...>, E>
+{
+  ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
+  ASIO_STATIC_CONSTEXPR(bool, is_noexcept = true);
+  typedef void result_type;
+};
+
+} // namespace traits
+} // namespace asio
+
+#endif // !defined(ASIO_HAS_DEDUCED_SET_ERROR_MEMBER_TRAIT)
+
+#if !defined(ASIO_HAS_DEDUCED_SET_DONE_MEMBER_TRAIT)
+
+namespace asio {
+namespace traits {
+
+template <typename Receiver, class... Senders>
+struct set_done_member<asio_ext::when_any::detail::op_receiver<Receiver, Senders...>>
+{
+  ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
+  ASIO_STATIC_CONSTEXPR(bool, is_noexcept = true);
+  typedef void result_type;
+};
+
+} // namespace traits
+} // namespace asio
+
+#endif // !defined(ASIO_HAS_DEDUCED_SET_DONE_MEMBER_TRAIT)
