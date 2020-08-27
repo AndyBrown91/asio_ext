@@ -91,18 +91,17 @@ namespace asio_ext
             template<class Receiver, class... Senders>
             struct operation_state
             {
-                using senders_storage = std::tuple<Senders...>;
                 using shared_state_t = shared_state<Receiver, Senders...>;
                 using operation_storage =
                     std::tuple<asio::execution::connect_result_t<Senders,
                     op_receiver<Receiver, Senders...>>...>;
 
-                senders_storage senders_;
+                sender_storage_t<Senders...> senders_;
 
                 std::shared_ptr<shared_state_t> state_;
 
                 template<class Rx>
-                operation_state(senders_storage&& senders, Rx&& receiver) : senders_(std::move(senders)),
+                operation_state(sender_storage_t<Senders...>&& senders, Rx&& receiver) : senders_(std::move(senders)),
                     state_(std::make_unique<shared_state_t>(std::forward<Rx>(receiver))) {}
 
                 void start() ASIO_NOEXCEPT {
@@ -123,8 +122,6 @@ namespace asio_ext
             template<class...Senders>
             struct when_any_op
             {
-                using senders_storage = std::tuple<Senders...>;
-
                 template<template<class...> class Tuple, template<class...> class Variant>
                 using value_types = boost::mp11::mp_unique<
                     boost::mp11::mp_append<
@@ -143,9 +140,10 @@ namespace asio_ext
                     std::bool_constant<asio::execution::sender_traits<Senders>::sends_done>...
                 >::value;
 
-                senders_storage senders_;
+                sender_storage_t<Senders...> senders_;
 
-                template<class...Tx, std::enable_if_t<std::is_constructible_v<senders_storage, Tx...>>* = nullptr>
+                template<class...Tx, 
+                    std::enable_if_t<std::is_constructible_v<sender_storage_t<Senders...>, Tx...>>* = nullptr>
                 explicit when_any_op(Tx &&...tx) : senders_(std::forward<Tx>(tx)...) {}
 
                 template<class Receiver>

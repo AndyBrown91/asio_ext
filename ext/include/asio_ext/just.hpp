@@ -13,17 +13,19 @@
 #include <asio/execution/set_error.hpp>
 #include <asio/execution/start.hpp>
 
+#include <asio_ext/type_traits.hpp>
+
 namespace asio_ext
 {
     namespace just
     {
         namespace detail
         {
-            template <class storage_type, class Receiver>
+            template <typename Receiver, typename... Values>
             struct operation
             {
                 Receiver receiver_;
-                storage_type values_;
+                sender_storage_t<Values...> values_;
 
                 void start() ASIO_NOEXCEPT {
                     try {
@@ -38,7 +40,7 @@ namespace asio_ext
                 }
             };
 
-            template <class... Values>
+            template <typename... Values>
             struct sender
             {
                 template<template<class...> class Tuple, template<class...> class Variant>
@@ -47,17 +49,16 @@ namespace asio_ext
                 using error_types = Variant<std::exception_ptr>;
                 static constexpr bool sends_done = false;
 
-                using storage_type = typename std::tuple<std::decay_t<Values>...>;
-                storage_type val_;
+                sender_storage_t<Values...> val_;
 
-                template <class... Vs, std::enable_if_t<std::is_constructible_v<storage_type, Vs...>>* = nullptr>
-                sender(Vs &&... v) : val_(std::forward<Vs>(v)...) {
-                }
+                template <typename... Vs,
+                    std::enable_if_t<std::is_constructible_v<sender_storage_t<Values...>, Vs...>>* = nullptr>
+                sender(Vs &&... v) : val_(std::forward<Vs>(v)...) {}
 
-                template <class Receiver>
+                template <typename Receiver>
                 auto connect(Receiver&& recv) {
                     return operation<
-                        storage_type, std::decay_t<Receiver>>{std::forward<Receiver>(recv), std::move(val_)};
+                        std::decay_t<Receiver>, Values...>{std::forward<Receiver>(recv), std::move(val_)};
                 }
             };
         } // namespace detail
@@ -94,8 +95,8 @@ static ASIO_CONSTEXPR const asio_ext::just::cpo&
 namespace asio {
 namespace traits {
 
-template <class storage_type, class Receiver>
-struct start_member<asio_ext::just::detail::operation<storage_type, Receiver>>
+template <typename Receiver, typename... Values>
+struct start_member<asio_ext::just::detail::operation<Receiver, Values...>>
 {
     ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
     ASIO_STATIC_CONSTEXPR(bool, is_noexcept = true);
@@ -111,13 +112,12 @@ struct start_member<asio_ext::just::detail::operation<storage_type, Receiver>>
 namespace asio {
 namespace traits {
 
-template <class... Values, typename R>
-struct connect_member<asio_ext::just::detail::sender<Values...>, R>
+template <typename... Values, typename Receiver>
+struct connect_member<asio_ext::just::detail::sender<Values...>, Receiver>
 {
   ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
   ASIO_STATIC_CONSTEXPR(bool, is_noexcept = false);
-  typedef typename asio_ext::just::detail::operation<
-      typename asio_ext::just::detail::sender<Values...>::storage_type, R> result_type;
+  typedef typename asio_ext::just::detail::operation<Receiver, Values...> result_type;
 };
 
 } // namespace traits

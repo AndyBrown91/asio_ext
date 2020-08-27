@@ -8,11 +8,14 @@
 
 #include <exception>
 #include <type_traits>
+#include <tuple>
 
 #include <asio/detail/type_traits.hpp>
 
 namespace asio_ext
 {
+    template <typename... Values>
+    using sender_storage_t = typename std::tuple<std::decay_t<Values>...>;
 
     template<class T>
     std::decay_t<T> decay_copy(T&& t) {

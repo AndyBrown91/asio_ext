@@ -100,19 +100,17 @@ namespace asio_ext
             template <class Receiver, class... Senders>
             struct operation_state
             {
-                using senders_storage = std::tuple<Senders...>;
-
                 using shared_state_t = shared_state<Receiver, Senders...>;
 
-                senders_storage senders_;
+                sender_storage_t<Senders...> senders_;
 
                 std::shared_ptr<shared_state_t> state_;
 
                 template <class Rx>
-                operation_state(senders_storage&& senders, Rx&& receiver)
+                operation_state(sender_storage_t<Senders...>&& senders, Rx&& receiver)
                     : senders_(std::move(senders)),
                     state_(std::make_unique<shared_state_t>(std::forward<Rx>(receiver),
-                        std::tuple_size_v<senders_storage>)) {
+                        std::tuple_size_v<sender_storage_t<Senders...>>)) {
                 }
 
                 void start() ASIO_NOEXCEPT {
@@ -133,8 +131,6 @@ namespace asio_ext
             template <class... Senders>
             struct when_all_op
             {
-                using senders_storage = std::tuple<Senders...>;
-
                 template <template <class...> class Tuple, template <class...> class Variant>
                 using value_types = boost::mp11::mp_unique<boost::mp11::mp_append<
                     typename asio::execution::sender_traits<Senders>::template value_types<Tuple, Variant>...>>;
@@ -147,7 +143,7 @@ namespace asio_ext
                 static constexpr bool sends_done = std::disjunction<
                     std::bool_constant<asio::execution::sender_traits<Senders>::sends_done>...>::value;
 
-                senders_storage senders_;
+                sender_storage_t<Senders...> senders_;
 
                 template <class... Tx>
                 when_all_op(Tx &&... tx) : senders_(std::forward<Tx>(tx)...) {}
