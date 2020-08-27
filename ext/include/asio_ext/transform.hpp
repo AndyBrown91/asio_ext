@@ -43,7 +43,7 @@ namespace asio_ext
             struct receiver
             {
                 using receiver_type = asio_ext::remove_cvref_t<Receiver>;
-                receiver_type next_;
+                typename asio::decay<Receiver>::type next_;
                 function_type fn_;
 
                 template <class Rx, class Fn>

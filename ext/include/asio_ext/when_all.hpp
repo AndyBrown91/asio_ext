@@ -30,10 +30,10 @@ namespace asio_ext
     {
         namespace detail
         {
-            template <typename Receiver, class... Senders>
+            template <typename Receiver, typename... Senders>
             struct shared_state;
 
-            template <typename Receiver, class... Senders>
+            template <typename Receiver, typename... Senders>
             struct op_receiver
             {
                 std::shared_ptr<shared_state<Receiver, Senders...>> state_;
@@ -54,7 +54,7 @@ namespace asio_ext
                     state_.reset();
                 }
 
-                template <class E>
+                template <typename E>
                 void set_error(E&& e) {
                     if (state_->next_) {
                         asio::execution::set_error(*state_->next_, std::forward<E>(e));
@@ -72,16 +72,16 @@ namespace asio_ext
                 }
             };
 
-            template <typename Receiver, class... Senders>
+            template <typename Receiver, typename... Senders>
             using operation_storage_t = std::tuple<
                 asio::execution::connect_result_t<
                 Senders,
                 op_receiver<Receiver, Senders...>>...>;
 
-            template <typename Receiver, class... Senders>
+            template <typename Receiver, typename... Senders>
             struct shared_state
             {
-                asio_ext::optional<Receiver> next_;
+                asio_ext::optional<std::decay_t<Receiver>> next_;
                 int waiting_for_;
                 asio_ext::optional<operation_storage_t<Receiver, Senders...>> op_storage_;
 
@@ -90,14 +90,14 @@ namespace asio_ext
                 }
             };
 
-            template <class Receiver, class... Senders>
+            template <typename Receiver, typename... Senders>
             op_receiver<Receiver, Senders...>
                 make_op_receiver(std::shared_ptr<shared_state<Receiver, Senders...>> state_)
             {
                 return op_receiver<Receiver, Senders...>{std::move(state_)};
             }
 
-            template <class Receiver, class... Senders>
+            template <typename Receiver, typename... Senders>
             struct operation_state
             {
                 using shared_state_t = shared_state<Receiver, Senders...>;
@@ -106,7 +106,7 @@ namespace asio_ext
 
                 std::shared_ptr<shared_state_t> state_;
 
-                template <class Rx>
+                template <typename Rx>
                 operation_state(sender_storage_t<Senders...>&& senders, Rx&& receiver)
                     : senders_(std::move(senders)),
                     state_(std::make_unique<shared_state_t>(std::forward<Rx>(receiver),
@@ -131,11 +131,11 @@ namespace asio_ext
             template <class... Senders>
             struct when_all_op
             {
-                template <template <class...> class Tuple, template <class...> class Variant>
+                template <template <typename...> class Tuple, template <typename...> class Variant>
                 using value_types = boost::mp11::mp_unique<boost::mp11::mp_append<
                     typename asio::execution::sender_traits<Senders>::template value_types<Tuple, Variant>...>>;
 
-                template <template <class...> class Variant>
+                template <template <typename...> class Variant>
                 using error_types = boost::mp11::mp_unique<boost::mp11::mp_append<
                     typename asio::execution::sender_traits<Senders>::template error_types<Variant>...>>;
 
@@ -145,12 +145,12 @@ namespace asio_ext
 
                 sender_storage_t<Senders...> senders_;
 
-                template <class... Tx>
+                template <typename... Tx>
                 when_all_op(Tx &&... tx) : senders_(std::forward<Tx>(tx)...) {}
 
-                template <class Receiver>
+                template <typename Receiver>
                 auto connect(Receiver&& receiver) {
-                    return operation_state<asio_ext::remove_cvref_t<Receiver>, Senders...>(
+                    return operation_state<Receiver, Senders...>(
                         std::move(senders_), std::forward<Receiver>(receiver));
                 }
             };
@@ -158,12 +158,12 @@ namespace asio_ext
 
         struct cpo
         {
-            template <class S>
+            template <typename S>
             auto operator()(S&& sender) const {
                 return std::forward<asio_ext::remove_cvref_t<S>>(sender);
             }
 
-            template <class First, class... Rest>
+            template <typename First, typename... Rest>
             auto operator()(First&& first, Rest&&... rest) const {
                 return detail::when_all_op<
                     asio_ext::remove_cvref_t<First>, 
@@ -196,7 +196,7 @@ static ASIO_CONSTEXPR const asio_ext::when_all::cpo&
 namespace asio {
 namespace traits {
 
-template <class Receiver, class... Senders>
+template <typename Receiver, typename... Senders>
 struct start_member<asio_ext::when_all::detail::operation_state<Receiver, Senders...>>
 {
     ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
@@ -213,13 +213,13 @@ struct start_member<asio_ext::when_all::detail::operation_state<Receiver, Sender
 namespace asio {
 namespace traits {
 
-template <class... Senders, typename R>
-struct connect_member<asio_ext::when_all::detail::when_all_op<Senders...>, R>
+template <typename... Senders, typename Receiver>
+struct connect_member<asio_ext::when_all::detail::when_all_op<Senders...>, Receiver>
 {
   ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
   ASIO_STATIC_CONSTEXPR(bool, is_noexcept = false);
   typedef typename 
-      asio_ext::when_all::detail::operation_state<asio_ext::remove_cvref_t<R>, Senders...>
+      asio_ext::when_all::detail::operation_state<Receiver, Senders...>
       result_type;
 };
 
@@ -233,7 +233,7 @@ struct connect_member<asio_ext::when_all::detail::when_all_op<Senders...>, R>
 namespace asio {
 namespace traits {
 
-template <typename Receiver, class... Senders, class... Values>
+template <typename Receiver, typename... Senders, typename... Values>
 struct set_value_member<asio_ext::when_all::detail::op_receiver<Receiver, Senders...>, void(Values...)>
 {
   ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
@@ -251,7 +251,7 @@ struct set_value_member<asio_ext::when_all::detail::op_receiver<Receiver, Sender
 namespace asio {
 namespace traits {
 
-template <typename Receiver, class... Senders, typename E>
+template <typename Receiver, typename... Senders, typename E>
 struct set_error_member<asio_ext::when_all::detail::op_receiver<Receiver, Senders...>, E>
 {
   ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
@@ -269,7 +269,7 @@ struct set_error_member<asio_ext::when_all::detail::op_receiver<Receiver, Sender
 namespace asio {
 namespace traits {
 
-template <typename Receiver, class... Senders>
+template <typename Receiver, typename... Senders>
 struct set_done_member<asio_ext::when_all::detail::op_receiver<Receiver, Senders...>>
 {
   ASIO_STATIC_CONSTEXPR(bool, is_valid = true);
